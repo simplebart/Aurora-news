@@ -50,8 +50,7 @@ function extractImage(item, source) {
 }
 
 async function parseXml(xmlStr, feed) {
-  // Skip if not valid XML
-  if (!xmlStr || (!xmlStr.includes("<rss") && !xmlStr.includes("<feed") && !xmlStr.includes("<channel") && !xmlStr.includes("<?xml"))) return []
+  if (!xmlStr || xmlStr.length < 100) return []
   const cap   = MAX_PER_FEED_OVERRIDES[feed.name] ?? MAX_PER_FEED
   const xml   = new DOMParser().parseFromString(xmlStr, 'text/xml')
   const items = [...xml.querySelectorAll('item, entry')]
