@@ -83,8 +83,14 @@ export default async function handler(req) {
         if (descImg && !descImg[1].includes('1x1')) image = descImg[1]
       }
 
+      // Generate stable unique id from full link
       let id
-      try { id = btoa(link).slice(0, 12) } catch { id = Math.random().toString(36).slice(2, 14) }
+      try { 
+        // Use last 20 chars of base64 of full link for uniqueness
+        const encoded = btoa(unescape(encodeURIComponent(link)))
+        id = encoded.replace(/[+/=]/g, '').slice(-16)
+        if (id.length < 4) id = Math.random().toString(36).slice(2)
+      } catch { id = Math.random().toString(36).slice(2) }
 
       items.push({
         id,

@@ -53,6 +53,7 @@ export function useFeed(feeds, view, calmSources) {
         seen.add(key)
         return true
       })
+      console.log('After dedup:', deduped.length)
 
       deduped.sort((a, b) => (b.date || 0) - (a.date || 0))
 
