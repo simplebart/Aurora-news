@@ -5,49 +5,49 @@ export default async function handler(req) {
   const url = searchParams.get('url')
   if (!url) return new Response('Missing url', { status: 400 })
 
-  // Try multiple approaches
-  const attempts = [
-    {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/rss+xml, application/xml, application/atom+xml, text/xml, */*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Cache-Control': 'no-cache',
-      }
-    },
-    {
-      headers: {
-        'User-Agent': 'Feedfetcher-Google; (+http://www.google.com/feedfetcher.html)',
-        'Accept': '*/*',
-      }
-    },
-    {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; Aurora RSS Reader/1.0)',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      }
-    }
+  const userAgents = [
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Feedfetcher-Google; (+http://www.google.com/feedfetcher.html; 1 subscribers; feed-id=1234)',
+    'Mozilla/5.0 (compatible; RSS reader)',
   ]
 
-  for (const attempt of attempts) {
+  for (const ua of userAgents) {
     try {
       const res = await fetch(url, {
-        headers: attempt.headers,
+        headers: {
+          'User-Agent': ua,
+          'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
+          'Accept-Encoding': 'gzip, deflate',
+          'Cache-Control': 'no-cache',
+        },
         redirect: 'follow',
       })
-      if (!res.ok) continue
+
       const text = await res.text()
-      if (!text.includes('<') ) continue  // not XML/HTML
+
+      // Must contain RSS/Atom markers to be valid
+      const isXml = text.includes('<rss') || text.includes('<feed') || text.includes('<channel') || text.includes('<?xml')
+      if (!isXml) continue
+
       return new Response(text, {
         headers: {
-          'Content-Type': res.headers.get('content-type') || 'application/xml; charset=utf-8',
+          'Content-Type': 'application/xml; charset=utf-8',
           'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET',
           'Cache-Control': 's-maxage=600, stale-while-revalidate=300',
+          'X-Aurora-Status': 'ok',
         },
       })
-    } catch { continue }
+    } catch (e) {
+      continue
+    }
   }
 
-  return new Response('Failed to fetch feed', { status: 502 })
+  return new Response('<error>Could not fetch feed</error>', {
+    status: 502,
+    headers: {
+      'Content-Type': 'application/xml',
+      'Access-Control-Allow-Origin': '*',
+      'X-Aurora-Status': 'error',
+    },
+  })
 }
