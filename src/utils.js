@@ -58,13 +58,17 @@ async function parseXml(xmlStr, feed) {
   for (const item of items) {
     const title = item.querySelector('title')?.textContent?.trim() || 'Untitled'
     if (isExcluded(title, feed.name)) continue
-    const link    = item.querySelector('link')?.textContent?.trim()
-                 || item.querySelector('link')?.getAttribute('href')
+    const linkEl  = item.querySelector('link')
+    const link    = linkEl?.textContent?.trim()
+                 || linkEl?.getAttribute('href')
+                 || linkEl?.getAttribute('xlink:href')
                  || '#'
     const summary = item.querySelector('description, summary, content')?.textContent?.trim() || ''
     const pubDate = item.querySelector('pubDate, published, updated')?.textContent?.trim()
+    let id
+    try { id = btoa(encodeURIComponent(link)).slice(0, 12) } catch { id = Math.random().toString(36).slice(2, 14) }
     out.push({
-      id:      btoa(encodeURIComponent(link)).slice(0, 12),
+      id,
       source:  feed.name,
       section: feed.section,
       title,
