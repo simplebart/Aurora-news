@@ -1,0 +1,81 @@
+.section { margin-bottom: 2.4rem; }
+
+/* Section header */
+.section-head {
+  display: flex; align-items: center; gap: .65rem;
+  margin-bottom: .85rem;
+}
+.section-label {
+  background: none; border: none; cursor: pointer;
+  font-family: var(--sans); font-size: .67rem; font-weight: 800;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-2);
+  padding: 0; white-space: nowrap;
+  transition: color .15s;
+}
+.section-label:hover { color: var(--ink); }
+.section-line  { flex: 1; height: 1px; background: var(--rule); }
+.section-nav-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--ink-3); font-size: .85rem;
+  transition: color .15s, transform .15s;
+  padding: 0 .1rem;
+}
+.section-nav-btn:hover { color: var(--ink); transform: translateX(2px); }
+
+/* Desktop layout */
+.desktop-section { display: flex; flex-direction: column; gap: 1rem; }
+
+.desktop-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.desktop-smalls {
+  display: grid;
+  gap: .85rem;
+}
+
+/* Save button (desktop) */
+.save-btn {
+  align-self: flex-end;
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  color: var(--ink-3);
+  font-size: .7rem; font-weight: 600;
+  padding: .2rem .6rem;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.save-btn:hover { color: var(--gold); border-color: var(--gold); }
+
+/* Mobile layout */
+.mobile-section { display: flex; flex-direction: column; }
+
+.mobile-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .55rem;
+  margin-bottom: .65rem;
+}
+
+/* Mobile section header */
+@media (max-width: 768px) {
+  .section-head {
+    padding: .85rem 0 .55rem;
+    border-top: 1px solid var(--rule);
+    margin-bottom: .6rem;
+  }
+  .section-label {
+    font-size: .72rem;
+    font-family: var(--serif);
+    letter-spacing: -.01em;
+    text-transform: none;
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--ink);
+  }
+  .section-label:hover { color: var(--ink-2); }
+}
