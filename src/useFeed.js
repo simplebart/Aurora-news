@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { fetchFeed, diverseSection } from './utils.js'
 import { SECTION_SIZE, MAX_PER_SOURCE } from './config.js'
 
@@ -6,11 +6,24 @@ export function useFeed(feeds, view, calmSources) {
   const [articles, setArticles] = useState([])
   const [loading, setLoading] = useState(true)
 
+  // Stable keys to detect real changes
+  const feedsKey = Object.entries(feeds)
+    .flatMap(([s, list]) => list.map(f => f.url))
+    .sort()
+    .join('|')
+  const calmKey = [...(calmSources || [])].sort().join('|')
+
+  const prevKey = useRef('')
+  const currentKey = `${view}||${feedsKey}||${calmKey}`
+
   useEffect(() => {
+    // Skip if nothing changed
+    if (prevKey.current === currentKey) return
+    prevKey.current = currentKey
+
     setLoading(true)
     setArticles([])
 
-    // Build list of feeds to fetch
     const allFeeds = Object.entries(feeds).flatMap(([section, list]) =>
       list.map(f => ({ ...f, section }))
     )
@@ -24,35 +37,35 @@ export function useFeed(feeds, view, calmSources) {
 
     let alive = true
 
-    Promise.all(targets.map(f => fetchFeed(f).catch(() => [])))
-      .then(results => {
-        if (!alive) return
-        const all = results.flat()
-        console.log('Total articles fetched:', all.length, 'from', targets.length, 'feeds')
+    Promise.all(targets.map(f =>
+      fetchFeed(f).catch(e => { console.error(f.name, e.message); return [] })
+    )).then(results => {
+      if (!alive) return
 
-        // Deduplicate
-        const seen = new Set()
-        const deduped = all.filter(a => {
-          if (seen.has(a.id)) return false
-          seen.add(a.id)
-          return true
-        })
+      const all = results.flat()
+      console.log('Raw articles:', all.length, 'from', targets.length, 'feeds')
 
-        // Sort newest first
-        deduped.sort((a, b) => (b.date || 0) - (a.date || 0))
-
-        // For Today: last 48 hours, or include if no date
-        const final = view === 'today'
-          ? deduped.filter(a => !a.date || (Date.now() - a.date) < 48 * 3600 * 1000)
-          : deduped
-
-        console.log('Articles after filter:', final.length, 'view:', view)
-        setArticles(final)
-        setLoading(false)
+      // Deduplicate
+      const seen = new Set()
+      const deduped = all.filter(a => {
+        if (!a.id || seen.has(a.id)) return false
+        seen.add(a.id)
+        return true
       })
 
+      deduped.sort((a, b) => (b.date || 0) - (a.date || 0))
+
+      const final = view === 'today'
+        ? deduped.filter(a => !a.date || (Date.now() - a.date.getTime()) < 48 * 3600 * 1000)
+        : deduped
+
+      console.log('Final articles:', final.length, 'for view:', view)
+      setArticles(final)
+      setLoading(false)
+    })
+
     return () => { alive = false }
-  }, [JSON.stringify(feeds), view, JSON.stringify(calmSources)])
+  }, [currentKey])
 
   return { articles, loading }
 }
