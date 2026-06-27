@@ -3,6 +3,9 @@ import './AddFeed.css'
 
 export default function AddFeed({ feeds, onAdd, onRemove, onClose }) {
   const [tab,     setTab]     = useState('add')
+  const [gistId,  setGistId]  = useState(localStorage.getItem('aurora_gist_id') || '')
+  const [token,   setToken]   = useState(localStorage.getItem('aurora_gist_token') || '')
+  const [cSaved,  setCSaved]  = useState(false)
   const [name,    setName]    = useState('')
   const [url,     setUrl]     = useState('')
   const [section, setSection] = useState(Object.keys(feeds)[0] || '')
@@ -27,6 +30,7 @@ export default function AddFeed({ feeds, onAdd, onRemove, onClose }) {
         <div className="add-feed-tabs">
           <button className={tab === 'add' ? 'active' : ''} onClick={() => setTab('add')}>Add feed</button>
           <button className={tab === 'remove' ? 'active' : ''} onClick={() => setTab('remove')}>Remove feed</button>
+          <button className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}>⚙ Settings</button>
         </div>
         <button className="add-feed-close" onClick={onClose}>✕</button>
       </div>
@@ -50,6 +54,30 @@ export default function AddFeed({ feeds, onAdd, onRemove, onClose }) {
           <button type="submit" className="add-feed-submit">Add feed</button>
           {msg && <p className="add-feed-msg">{msg}</p>}
         </form>
+      )}
+
+      {tab === 'settings' && (
+        <div className="settings-tab">
+          <p className="settings-desc">Connect a GitHub Gist to sync feeds and saved articles across all your devices.</p>
+          <div className="settings-form">
+            <label>Gist ID</label>
+            <input value={gistId} onChange={e => setGistId(e.target.value)} placeholder="c76dfae..." />
+            <label>GitHub Token</label>
+            <input value={token} onChange={e => setToken(e.target.value)} placeholder="ghp_..." type="password" />
+            <div className="settings-btns">
+              <button className="settings-save" onClick={() => {
+                if (gistId.trim()) localStorage.setItem('aurora_gist_id', gistId.trim())
+                if (token.trim())  localStorage.setItem('aurora_gist_token', token.trim())
+                setCSaved(true); setTimeout(() => setCSaved(false), 1500)
+              }}>{cSaved ? 'Saved ✓' : 'Save'}</button>
+              <button className="settings-clear" onClick={() => {
+                localStorage.removeItem('aurora_gist_id')
+                localStorage.removeItem('aurora_gist_token')
+                setGistId(''); setToken('')
+              }}>Clear</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {tab === 'remove' && (
