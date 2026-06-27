@@ -8,7 +8,8 @@
     position: fixed;
     top: 0; left: 0; right: 0;
     z-index: 9999;
-    height: var(--nav-h);
+    min-height: var(--nav-h);
+  height: calc(var(--nav-h) + env(safe-area-inset-top));
     padding: .5rem .8rem .4rem;
     padding-top: max(.5rem, env(safe-area-inset-top));
     /* Liquid glass */
