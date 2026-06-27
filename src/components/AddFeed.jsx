@@ -17,9 +17,11 @@ export default function AddFeed({ feeds, onAdd, onRemove, onClose }) {
     e.preventDefault()
     const sec = useNew ? newSec.trim() : section
     if (!name.trim() || !url.trim() || !sec) { setMsg('Fill in all fields.'); return }
+    // Basic URL check
+    if (!url.trim().startsWith('http')) { setMsg('URL must start with http'); return }
     onAdd(sec, name.trim(), url.trim())
-    setName(''); setUrl(''); setMsg('Added ✓')
-    setTimeout(() => setMsg(''), 2000)
+    setMsg('Added ✓')
+    setTimeout(() => { setMsg(''); onClose() }, 1000)
   }
 
   const allFeeds = Object.entries(feeds).flatMap(([s, list]) => list.map(f => ({ section: s, ...f })))
