@@ -63,7 +63,10 @@ export default function App() {
   const hasMore   = sections ? sectionKeys.length < [...sections.keys()].length : false
 
   const handleNav = useCallback(v => {
-    setView(v.toLowerCase())
+    // Only lowercase the built-in views, preserve section names
+    const builtIn = ['today', 'all', 'calm', 'saved']
+    const normalized = builtIn.includes(v.toLowerCase()) ? v.toLowerCase() : v
+    setView(normalized)
     setSearchQuery('')
     setAddOpen(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
