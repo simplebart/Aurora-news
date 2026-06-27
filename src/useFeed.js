@@ -55,9 +55,7 @@ export function useFeed(feeds, view, calmSources) {
 
       deduped.sort((a, b) => (b.date || 0) - (a.date || 0))
 
-      const final = view === 'today'
-        ? deduped.filter(a => !a.date || (Date.now() - a.date.getTime()) < 48 * 3600 * 1000)
-        : deduped
+      const final = deduped
 
       console.log('Final articles:', final.length, 'for view:', view)
       setArticles(final)
