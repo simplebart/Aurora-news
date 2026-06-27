@@ -1,94 +1,114 @@
 import { useState, useEffect, useRef } from 'react'
-import { fetchFeed, scrapeOg, canScrape, diverseSection } from './utils.js'
+import { fetchFeed, diverseSection } from './utils.js'
 import { SECTION_SIZE, MAX_PER_SOURCE } from './config.js'
 
-const CACHE_TTL = 15 * 60 * 1000 // 15 minutes
+const CACHE_TTL = 15 * 60 * 1000
 const cache = new Map()
 
 function getCached(key) {
-  const entry = cache.get(key)
-  if (!entry) return null
-  if (Date.now() - entry.ts > CACHE_TTL) { cache.delete(key); return null }
-  return entry.data
+  const e = cache.get(key)
+  if (!e) return null
+  if (Date.now() - e.ts > CACHE_TTL) { cache.delete(key); return null }
+  return e.data
 }
-function setCached(key, data) {
-  cache.set(key, { ts: Date.now(), data })
-}
+function setCached(key, data) { cache.set(key, { ts: Date.now(), data }) }
 
 export function useFeed(feeds, view, calmSources) {
   const [articles, setArticles] = useState([])
   const [loading,  setLoading]  = useState(true)
+  const [errors,   setErrors]   = useState([])
   const abortRef = useRef(null)
 
   useEffect(() => {
     if (abortRef.current) abortRef.current.abort()
-    abortRef.current = new AbortController()
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
 
     setLoading(true)
     setArticles([])
+    setErrors([])
 
-    // Build targets based on view
     const allFeeds = Object.entries(feeds).flatMap(([section, list]) =>
       list.map(f => ({ ...f, section }))
     )
+
     let targets
     if (view === 'calm') {
-      const calmSet = new Set(calmSources)
-      targets = allFeeds.filter(f => calmSet.has(f.name))
+      const s = new Set(calmSources)
+      targets = allFeeds.filter(f => s.has(f.name))
     } else if (view === 'today' || view === 'all') {
       targets = allFeeds
     } else {
-      // specific section
       targets = (feeds[view] || []).map(f => ({ ...f, section: view }))
     }
 
-    const cacheKey = targets.map(f => f.url).sort().join('|')
+    if (targets.length === 0) { setLoading(false); return }
+
+    const cacheKey = view + '|' + targets.map(f => f.url).sort().join('|')
     const cached = getCached(cacheKey)
-    if (cached) {
-      setArticles(cached)
+    if (cached) { setArticles(cached); setLoading(false); return }
+
+    let cancelled = false
+
+    // Fetch all feeds in parallel, update UI as each comes in
+    const errs = []
+    let completed = 0
+
+    const fetchAll = async () => {
+      const results = await Promise.allSettled(
+        targets.map(f => fetchFeed(f).then(articles => {
+          if (cancelled) return []
+          if (articles.length > 0) {
+            console.log(`✓ ${f.name}: ${articles.length} articles`)
+          } else {
+            console.warn(`✗ ${f.name}: 0 articles`)
+            errs.push(f.name)
+          }
+          completed++
+          // Progressive update every 3 feeds
+          if (completed % 3 === 0 || completed === targets.length) {
+            setArticles(prev => {
+              const all = [...prev, ...articles]
+              const seen = new Set()
+              return all
+                .filter(a => { if (seen.has(a.id)) return false; seen.add(a.id); return true })
+                .sort((a, b) => (b.date || 0) - (a.date || 0))
+            })
+          }
+          return articles
+        }))
+      )
+
+      if (cancelled) return
+      setErrors(errs)
+
+      // Final dedup and sort
+      const all = results
+        .filter(r => r.status === 'fulfilled')
+        .flatMap(r => r.value)
+      const seen = new Set()
+      const deduped = all
+        .filter(a => { if (seen.has(a.id)) return false; seen.add(a.id); return true })
+        .sort((a, b) => (b.date || 0) - (a.date || 0))
+
+      // Filter Today
+      const final = view === 'today'
+        ? deduped.filter(a => a.date && Date.now() - a.date.getTime() < 24 * 3600 * 1000)
+        : deduped
+
+      setArticles(final)
       setLoading(false)
-      return
+      setCached(cacheKey, final)
+      console.log(`Total: ${final.length} articles from ${targets.length} feeds`)
     }
 
-    let done = false
-    Promise.all(targets.map(f => fetchFeed(f))).then(async results => {
-      if (done) return
-      let all = results.flat().sort((a, b) => (b.date || 0) - (a.date || 0))
+    fetchAll()
+    return () => { cancelled = true }
+  }, [feeds, view, JSON.stringify(calmSources)])
 
-      // Deduplicate
-      const seen = new Set()
-      all = all.filter(a => { if (seen.has(a.id)) return false; seen.add(a.id); return true })
-
-      // Filter Today: last 24h
-      if (view === 'today') {
-        const cutoff = Date.now() - 24 * 3600 * 1000
-        all = all.filter(a => a.date && a.date.getTime() > cutoff)
-      }
-
-      setArticles(all)
-      setLoading(false)
-
-      // Scrape og:image for articles without one (background, max 15)
-      const needsImg = all.filter(a => !a.image && canScrape(a.source)).slice(0, 15)
-      for (const a of needsImg) {
-        if (done) break
-        const img = await scrapeOg(a.link)
-        if (img) {
-          a.image = img
-          setArticles(prev => [...prev]) // trigger re-render
-        }
-      }
-
-      setCached(cacheKey, all)
-    }).catch(() => setLoading(false))
-
-    return () => { done = true }
-  }, [feeds, view, calmSources?.join?.(',')])
-
-  return { articles, loading }
+  return { articles, loading, errors }
 }
 
-// ─── Organise articles into sections for grouped views ────────────────────
 export function groupBySection(articles) {
   const map = new Map()
   for (const a of articles) {
