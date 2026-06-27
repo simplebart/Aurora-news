@@ -3,51 +3,113 @@ export const config = { runtime: 'edge' }
 export default async function handler(req) {
   const { searchParams } = new URL(req.url)
   const url = searchParams.get('url')
-  if (!url) return new Response('Missing url', { status: 400 })
+  const source = searchParams.get('source') || ''
+  const section = searchParams.get('section') || ''
 
-  const userAgents = [
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Feedfetcher-Google; (+http://www.google.com/feedfetcher.html; 1 subscribers; feed-id=1234)',
-    'Mozilla/5.0 (compatible; RSS reader)',
-  ]
+  if (!url) return json({ error: 'Missing url', items: [] })
 
-  for (const ua of userAgents) {
-    try {
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent': ua,
-          'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
-          'Accept-Encoding': 'gzip, deflate',
-          'Cache-Control': 'no-cache',
-        },
-        redirect: 'follow',
-      })
-
-      const text = await res.text()
-
-      // Must contain RSS/Atom markers to be valid
-      const isXml = text.includes('<rss') || text.includes('<feed') || text.includes('<channel') || text.includes('<?xml')
-      if (!isXml) continue
-
-      return new Response(text, {
-        headers: {
-          'Content-Type': 'application/xml; charset=utf-8',
-          'Access-Control-Allow-Origin': '*',
-          'Cache-Control': 's-maxage=600, stale-while-revalidate=300',
-          'X-Aurora-Status': 'ok',
-        },
-      })
-    } catch (e) {
-      continue
-    }
+  const LOW_RES = ['BBC News','BBC Europe','BBC Sport Football','The Guardian','The Guardian Film']
+  const NO_KW = {
+    'The Verge': ['prime day','deal','deals','review','hands-on','best','discount','sale','unboxing','how to','versus',' vs ','giveaway','buy','price','cheap','gift guide'],
+    'Wired': ['review','best','buying guide','how to','deal','deals','discount','sale','gear','tested','gift guide','coupon','promo'],
   }
 
-  return new Response('<error>Could not fetch feed</error>', {
-    status: 502,
+  function isExcluded(title) {
+    const kws = NO_KW[source]
+    if (!kws) return false
+    const t = title.toLowerCase()
+    return kws.some(k => t.includes(k))
+  }
+
+  function getImage(item) {
+    if (LOW_RES.includes(source)) return null
+    const mt = item.querySelector('thumbnail')
+    if (mt?.getAttribute('url')) return mt.getAttribute('url')
+    const mc = item.querySelector('content[medium="image"]')
+    if (mc?.getAttribute('url')) return mc.getAttribute('url')
+    const enc = item.querySelector('enclosure[type^="image"]')
+    if (enc?.getAttribute('url')) return enc.getAttribute('url')
+    const desc = item.querySelector('description, summary')?.textContent || ''
+    const m = desc.match(/src=["']([^"']+\.(?:jpg|jpeg|png|webp))/i)
+    if (m && !m[1].includes('1x1')) return m[1]
+    return null
+  }
+
+  function stripHtml(s) {
+    return (s || '').replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim()
+  }
+
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+      },
+    })
+    const text = await res.text()
+
+    // Parse XML server-side using regex (no DOMParser in edge)
+    const items = []
+    const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>|<entry[^>]*>([\s\S]*?)<\/entry>/gi
+    let match
+
+    while ((match = itemRegex.exec(text)) !== null && items.length < 10) {
+      const block = match[1] || match[2]
+
+      const title = (block.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i)?.[1] || '').trim()
+      if (!title || isExcluded(title)) continue
+
+      // Link: try <link>url</link> and <link href="url"/>
+      const linkText = block.match(/<link[^>]*>([^<]+)<\/link>/i)?.[1]?.trim()
+      const linkHref = block.match(/<link[^/]*href=["']([^"']+)["']/i)?.[1]
+      const link = linkText || linkHref || '#'
+
+      const desc = block.match(/<description[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i)?.[1]
+                || block.match(/<summary[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/summary>/i)?.[1] || ''
+
+      const pub = block.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i)?.[1]
+               || block.match(/<published[^>]*>([\s\S]*?)<\/published>/i)?.[1]
+               || block.match(/<updated[^>]*>([\s\S]*?)<\/updated>/i)?.[1] || ''
+
+      // Image from media:thumbnail or enclosure
+      const imgMatch = block.match(/media:thumbnail[^>]+url=["']([^"']+)["']/i)
+                    || block.match(/enclosure[^>]+type=["']image[^"']*["'][^>]+url=["']([^"']+)["']/i)
+                    || block.match(/enclosure[^>]+url=["']([^"']+)["'][^>]+type=["']image/i)
+      let image = imgMatch ? imgMatch[1] : null
+
+      // Try og:image or img src from description if no image yet
+      if (!image && !LOW_RES.includes(source)) {
+        const descImg = desc.match(/src=["']([^"']+\.(?:jpg|jpeg|png|webp)[^"']*)/i)
+        if (descImg && !descImg[1].includes('1x1')) image = descImg[1]
+      }
+
+      let id
+      try { id = btoa(link).slice(0, 12) } catch { id = Math.random().toString(36).slice(2, 14) }
+
+      items.push({
+        id,
+        source,
+        section,
+        title: stripHtml(title),
+        link,
+        summary: stripHtml(desc).slice(0, 300),
+        image,
+        date: pub ? new Date(pub).toISOString() : null,
+      })
+    }
+
+    return json({ items })
+  } catch (e) {
+    return json({ error: e.message, items: [] })
+  }
+}
+
+function json(data) {
+  return new Response(JSON.stringify(data), {
     headers: {
-      'Content-Type': 'application/xml',
+      'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
-      'X-Aurora-Status': 'error',
+      'Cache-Control': 's-maxage=600',
     },
   })
 }

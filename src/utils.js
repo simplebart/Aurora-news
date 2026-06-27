@@ -24,104 +24,29 @@ export function relative(date) {
   return new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
-export function isExcluded(title, source) {
-  const kws = EXCLUDE_KEYWORDS[source]
-  if (!kws) return false
-  const t = title.toLowerCase()
-  return kws.some(k => t.includes(k))
-}
-
-function stripHtml(s) {
-  return (s || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-}
-
-function getImage(item, source) {
-  if (LOW_RES_SOURCES.has(source)) return null
-  // media:thumbnail
-  const mt = item.querySelector('thumbnail')
-  if (mt && mt.getAttribute('url')) return mt.getAttribute('url')
-  // media:content
-  const mc = item.querySelector('content[medium="image"], content[type^="image"]')
-  if (mc && mc.getAttribute('url')) return mc.getAttribute('url')
-  // enclosure
-  const enc = item.querySelector('enclosure[type^="image"]')
-  if (enc && enc.getAttribute('url')) return enc.getAttribute('url')
-  // img in description
-  const desc = item.querySelector('description, summary')
-  if (desc) {
-    const m = desc.textContent.match(/<img[^>]+src=["']([^"']+)/i)
-      || desc.innerHTML?.match(/src=["']([^"']+\.(?:jpg|jpeg|png|webp)[^"']*)/i)
-    if (m && m[1] && !m[1].includes('1x1')) return m[1]
-  }
-  return null
-}
-
-function makeId(str) {
-  try { return btoa(unescape(encodeURIComponent(str))).slice(0, 12) } 
-  catch { return Math.random().toString(36).slice(2, 14) }
-}
-
 export async function fetchFeed(feed) {
   const cap = MAX_PER_FEED_OVERRIDES[feed.name] ?? MAX_PER_FEED
-  let text = null
+  const params = new URLSearchParams({
+    url: feed.url,
+    source: feed.name,
+    section: feed.section,
+  })
 
-  // Try own proxy first, then fallbacks
-  for (const url of [
-    `/api/feed?url=${encodeURIComponent(feed.url)}`,
-    `https://corsproxy.io/?${encodeURIComponent(feed.url)}`,
-    `https://api.allorigins.win/get?url=${encodeURIComponent(feed.url)}`,
-  ]) {
-    try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
-      let t = await res.text()
-      // allorigins wraps in JSON
-      if (url.includes('allorigins')) {
-        try { t = JSON.parse(t).contents || t } catch {}
-      }
-      if (t.includes('<item') || t.includes('<entry')) {
-        text = t
-        break
-      }
-    } catch {}
-  }
-
-  if (!text) return []
-
-  const xml = new DOMParser().parseFromString(text, 'text/xml')
-  const items = [...xml.querySelectorAll('item, entry')]
-  const out = []
-
-  for (const item of items) {
-    const title = (item.querySelector('title')?.textContent || '').trim()
-    if (!title || isExcluded(title, feed.name)) continue
-
-    // Link: try text content first (RSS), then href attribute (Atom)
-    const linkEl = item.querySelector('link')
-    const link = (linkEl?.textContent || '').trim() || linkEl?.getAttribute('href') || '#'
-
-    const desc = item.querySelector('description, summary, content')?.textContent || ''
-    const pub = item.querySelector('pubDate, published, updated')?.textContent || ''
-
-    out.push({
-      id:      makeId(link),
-      source:  feed.name,
-      section: feed.section,
-      title,
-      link,
-      summary: stripHtml(desc).slice(0, 300),
-      image:   getImage(item, feed.name),
-      date:    pub ? new Date(pub) : null,
+  try {
+    const res = await fetch(`/api/feed?${params}`, {
+      signal: AbortSignal.timeout(10000),
     })
-
-    if (out.length >= cap) break
+    const data = await res.json()
+    const items = (data.items || []).slice(0, cap)
+    // Convert date strings back to Date objects
+    return items.map(a => ({ ...a, date: a.date ? new Date(a.date) : null }))
+  } catch (e) {
+    console.error('fetchFeed error:', feed.name, e.message)
+    return []
   }
-
-  return out.sort((a, b) => (b.date || 0) - (a.date || 0))
 }
 
-export function canScrape(source) {
-  return !['FT','FT Opinion','FT Alphaville','The Economist','The Economist Leaders','MarketWatch'].includes(source)
-}
+export function canScrape() { return false } // scraping now done server-side
 
 export function diverseSection(articles, n = 5, maxPer = 2) {
   const counts = {}
