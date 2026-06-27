@@ -1,71 +1,57 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { fetchFeed, diverseSection } from './utils.js'
 import { SECTION_SIZE, MAX_PER_SOURCE } from './config.js'
 
 export function useFeed(feeds, view, calmSources) {
   const [articles, setArticles] = useState([])
-  const [loading,  setLoading]  = useState(true)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setLoading(true)
     setArticles([])
 
+    // Build list of feeds to fetch
     const allFeeds = Object.entries(feeds).flatMap(([section, list]) =>
       list.map(f => ({ ...f, section }))
     )
 
-    let targets
-    if (view === 'calm') {
-      const s = new Set(calmSources)
-      targets = allFeeds.filter(f => s.has(f.name))
-    } else if (view === 'today' || view === 'all') {
-      targets = allFeeds
-    } else {
-      targets = (feeds[view] || []).map(f => ({ ...f, section: view }))
-    }
+    const targets =
+      view === 'calm' ? allFeeds.filter(f => (calmSources || []).includes(f.name)) :
+      view === 'today' || view === 'all' ? allFeeds :
+      (feeds[view] || []).map(f => ({ ...f, section: view }))
 
-    if (targets.length === 0) { setLoading(false); return }
+    if (!targets.length) { setLoading(false); return }
 
-    let cancelled = false
+    let alive = true
 
-    const run = async () => {
-      // Fetch all in parallel
-      const results = await Promise.allSettled(targets.map(f => fetchFeed(f)))
-      if (cancelled) return
+    Promise.all(targets.map(f => fetchFeed(f).catch(() => [])))
+      .then(results => {
+        if (!alive) return
+        const all = results.flat()
+        console.log('Total articles fetched:', all.length, 'from', targets.length, 'feeds')
 
-      const all = results
-        .filter(r => r.status === 'fulfilled')
-        .flatMap(r => r.value)
+        // Deduplicate
+        const seen = new Set()
+        const deduped = all.filter(a => {
+          if (seen.has(a.id)) return false
+          seen.add(a.id)
+          return true
+        })
 
-      console.log(`Fetched ${all.length} total articles from ${targets.length} feeds`)
+        // Sort newest first
+        deduped.sort((a, b) => (b.date || 0) - (a.date || 0))
 
-      // Deduplicate by id
-      const seen = new Set()
-      const deduped = all.filter(a => {
-        if (seen.has(a.id)) return false
-        seen.add(a.id)
-        return true
+        // For Today: last 48 hours, or include if no date
+        const final = view === 'today'
+          ? deduped.filter(a => !a.date || (Date.now() - a.date) < 48 * 3600 * 1000)
+          : deduped
+
+        console.log('Articles after filter:', final.length, 'view:', view)
+        setArticles(final)
+        setLoading(false)
       })
 
-      // Sort by date
-      deduped.sort((a, b) => (b.date || 0) - (a.date || 0))
-
-      // Filter Today: last 48h (relaxed from 24h)
-      const final = view === 'today'
-        ? deduped.filter(a => {
-            if (!a.date) return true // include if no date
-            const age = Date.now() - a.date.getTime()
-            return age < 48 * 3600 * 1000
-          })
-        : deduped
-
-      console.log(`After filter: ${final.length} articles for view "${view}"`)
-      setArticles(final)
-      setLoading(false)
-    }
-
-    run()
-    return () => { cancelled = true }
+    return () => { alive = false }
   }, [JSON.stringify(feeds), view, JSON.stringify(calmSources)])
 
   return { articles, loading }
@@ -81,9 +67,5 @@ export function groupBySection(articles) {
 }
 
 export function getSectionArticles(articles, section) {
-  return diverseSection(
-    articles.filter(a => a.section === section),
-    SECTION_SIZE,
-    MAX_PER_SOURCE,
-  )
+  return diverseSection(articles.filter(a => a.section === section), SECTION_SIZE, MAX_PER_SOURCE)
 }
