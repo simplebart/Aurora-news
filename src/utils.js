@@ -50,16 +50,16 @@ function extractImage(item, source) {
 }
 
 async function parseXml(xmlStr, feed) {
-  const cap  = MAX_PER_FEED_OVERRIDES[feed.name] ?? MAX_PER_FEED
-  const xml  = new DOMParser().parseFromString(xmlStr, 'text/xml')
+  const cap   = MAX_PER_FEED_OVERRIDES[feed.name] ?? MAX_PER_FEED
+  const xml   = new DOMParser().parseFromString(xmlStr, 'text/xml')
   const items = [...xml.querySelectorAll('item, entry')]
-  const out  = []
+  const out   = []
   for (const item of items) {
     const title = item.querySelector('title')?.textContent?.trim() || 'Untitled'
     if (isExcluded(title, feed.name)) continue
-    const link = item.querySelector('link')?.textContent?.trim()
-                || item.querySelector('link')?.getAttribute('href')
-                || '#'
+    const link    = item.querySelector('link')?.textContent?.trim()
+                 || item.querySelector('link')?.getAttribute('href')
+                 || '#'
     const summary = item.querySelector('description, summary, content')?.textContent?.trim() || ''
     const pubDate = item.querySelector('pubDate, published, updated')?.textContent?.trim()
     out.push({
@@ -77,54 +77,33 @@ async function parseXml(xmlStr, feed) {
   return out.sort((a, b) => (b.date || 0) - (a.date || 0))
 }
 
-export async function fetchFeed(feed) {
-  const proxies = [
-    // 1. corsproxy.io — returns raw XML
-    async () => {
-      const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(feed.url)}`, { signal: AbortSignal.timeout(8000) })
-      const text = await res.text()
-      return parseXml(text, feed)
-    },
-    // 2. allorigins — returns JSON with contents
-    async () => {
-      const res  = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(feed.url)}`, { signal: AbortSignal.timeout(8000) })
-      const data = await res.json()
-      return parseXml(data.contents || '', feed)
-    },
-    // 3. rss2json — different format, parses differently
-    async () => {
-      const res  = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}&count=20`, { signal: AbortSignal.timeout(8000) })
-      const data = await res.json()
-      if (data.status !== 'ok') throw new Error('rss2json error')
-      const cap = MAX_PER_FEED_OVERRIDES[feed.name] ?? MAX_PER_FEED
-      const out = []
-      for (const item of data.items || []) {
-        const title = item.title?.trim() || 'Untitled'
-        if (isExcluded(title, feed.name)) continue
-        const img = (!LOW_RES_SOURCES.has(feed.name) && item.thumbnail && !item.thumbnail.includes('1x1'))
-          ? item.thumbnail : null
-        out.push({
-          id:      btoa(encodeURIComponent(item.link || title)).slice(0, 12),
-          source:  feed.name,
-          section: feed.section,
-          title,
-          link:    item.link || '#',
-          summary: stripHtml(item.description || '').slice(0, 300),
-          image:   img,
-          date:    item.pubDate ? new Date(item.pubDate) : null,
-        })
-        if (out.length >= cap) break
-      }
-      return out
-    },
-  ]
+// Own Vercel edge function — server-side, no CORS
+const OWN_PROXY = (url) => `/api/feed?url=${encodeURIComponent(url)}`
 
-  for (const proxy of proxies) {
-    try {
-      const result = await proxy()
-      if (result.length > 0) return result
-    } catch { continue }
-  }
+export async function fetchFeed(feed) {
+  // 1. Own Vercel API route (server-side, most reliable)
+  try {
+    const res  = await fetch(OWN_PROXY(feed.url), { signal: AbortSignal.timeout(10000) })
+    const text = await res.text()
+    const result = await parseXml(text, feed)
+    if (result.length > 0) return result
+  } catch {}
+
+  // 2. corsproxy.io fallback
+  try {
+    const res  = await fetch(`https://corsproxy.io/?${encodeURIComponent(feed.url)}`, { signal: AbortSignal.timeout(8000) })
+    const text = await res.text()
+    const result = await parseXml(text, feed)
+    if (result.length > 0) return result
+  } catch {}
+
+  // 3. allorigins fallback
+  try {
+    const res  = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(feed.url)}`, { signal: AbortSignal.timeout(8000) })
+    const data = await res.json()
+    return parseXml(data.contents || '', feed)
+  } catch {}
+
   return []
 }
 
@@ -132,7 +111,7 @@ const NO_SCRAPE = new Set(['FT','FT Opinion','FT Alphaville','The Economist','Th
 
 export async function scrapeOg(url) {
   try {
-    const res  = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(4000) })
+    const res  = await fetch(OWN_PROXY(url), { signal: AbortSignal.timeout(4000) })
     const text = await res.text()
     const m    = text.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)/i)
               || text.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image/i)
