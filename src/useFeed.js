@@ -45,11 +45,12 @@ export function useFeed(feeds, view, calmSources) {
       const all = results.flat()
       console.log('Raw articles:', all.length, 'from', targets.length, 'feeds')
 
-      // Deduplicate
+      // Deduplicate by link (more reliable than id)
       const seen = new Set()
       const deduped = all.filter(a => {
-        if (!a.id || seen.has(a.id)) return false
-        seen.add(a.id)
+        const key = a.link || a.id
+        if (!key || key === '#' || seen.has(key)) return false
+        seen.add(key)
         return true
       })
 
