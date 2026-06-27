@@ -163,3 +163,32 @@
   display: grid;
   gap: .85rem;
 }
+
+/* ── Settings panel ─────────────────────────────────────────────── */
+.settings-panel {
+  background: var(--card); border: 1px solid var(--rule);
+  border-radius: var(--r-lg); padding: 1rem; margin-bottom: 1.2rem;
+  box-shadow: var(--shadow);
+}
+.settings-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:.6rem; }
+.settings-title  { font-weight:700; font-size:.95rem; color:var(--ink); }
+.settings-close  { background:none; border:none; cursor:pointer; color:var(--ink-3); font-size:1rem; }
+.settings-desc   { font-size:.78rem; color:var(--ink-3); margin-bottom:.8rem; line-height:1.5; }
+.settings-form   { display:flex; flex-direction:column; gap:.45rem; }
+.settings-form label { font-size:.72rem; font-weight:600; color:var(--ink-2); }
+.settings-form input {
+  background:var(--surface); border:1px solid var(--rule); border-radius:9px;
+  color:var(--ink); font-family:var(--sans); font-size:.82rem;
+  padding:.4rem .7rem; outline:none;
+}
+.settings-form input:focus { border-color:var(--accent); }
+.settings-btns { display:flex; gap:.5rem; margin-top:.3rem; }
+.settings-save {
+  flex:1; background:linear-gradient(135deg,#5b6fff,#c44eba);
+  border:none; border-radius:9px; color:#fff;
+  font-size:.82rem; font-weight:700; padding:.45rem; cursor:pointer;
+}
+.settings-clear {
+  background:none; border:1px solid var(--rule); border-radius:9px;
+  color:var(--ink-3); font-size:.82rem; padding:.45rem .8rem; cursor:pointer;
+}

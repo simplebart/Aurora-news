@@ -16,6 +16,7 @@ export default function App() {
   const [view,        setView]        = useState('today')
   const [searchQuery, setSearchQuery] = useState('')
   const [addOpen,     setAddOpen]     = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [visibleSecs, setVisibleSecs] = useState(PAGE_SIZE)
   const [isMobile,    setIsMobile]    = useState(window.innerWidth <= 768)
   const sentinelRef = useRef(null)
@@ -114,6 +115,7 @@ export default function App() {
               ))}
             </nav>
             <button className="sidebar-add" onClick={() => setAddOpen(o => !o)}>+ Add feed</button>
+            <button className="sidebar-add" style={{marginTop:'.3rem'}} onClick={() => setSettingsOpen(o => !o)}>⚙ Settings</button>
           </aside>
 
           <div className="main-content">
@@ -147,6 +149,11 @@ export default function App() {
             onRemove={(sec, name) => { removeFeed(sec, name) }}
             onClose={() => setAddOpen(false)}
           />
+        )}
+
+        {/* Settings panel */}
+        {settingsOpen && (
+          <SettingsPanel onClose={() => setSettingsOpen(false)} />
         )}
 
         {/* Search bar (desktop only, mobile is in NavBar) */}
@@ -311,6 +318,47 @@ function SingleView({ articles, starred, read, onRead, onStar, isMobile, view, o
         {rows}
       </div>
       {hasMore && <div ref={sentinelRef} style={{ height:1 }} />}
+    </div>
+  )
+}
+
+// ─── Settings panel ───────────────────────────────────────────────────────
+function SettingsPanel({ onClose }) {
+  const [gistId,    setGistId]    = useState(localStorage.getItem('aurora_gist_id') || '')
+  const [token,     setToken]     = useState(localStorage.getItem('aurora_gist_token') || '')
+  const [saved,     setSaved]     = useState(false)
+
+  function handleSave(e) {
+    e.preventDefault()
+    if (gistId.trim()) localStorage.setItem('aurora_gist_id', gistId.trim())
+    if (token.trim())  localStorage.setItem('aurora_gist_token', token.trim())
+    setSaved(true)
+    setTimeout(() => { setSaved(false); onClose() }, 1000)
+  }
+
+  function handleClear() {
+    localStorage.removeItem('aurora_gist_id')
+    localStorage.removeItem('aurora_gist_token')
+    setGistId(''); setToken('')
+  }
+
+  return (
+    <div className="settings-panel fade-in">
+      <div className="settings-header">
+        <span className="settings-title">⚙ Settings</span>
+        <button className="settings-close" onClick={onClose}>✕</button>
+      </div>
+      <p className="settings-desc">Connect a GitHub Gist to sync feeds and saved articles across devices.</p>
+      <form onSubmit={handleSave} className="settings-form">
+        <label>Gist ID</label>
+        <input value={gistId} onChange={e => setGistId(e.target.value)} placeholder="c76dfae126668ed461ef519d3df9c5d6" />
+        <label>GitHub Token</label>
+        <input value={token} onChange={e => setToken(e.target.value)} placeholder="ghp_..." type="password" />
+        <div className="settings-btns">
+          <button type="submit" className="settings-save">{saved ? 'Saved ✓' : 'Save'}</button>
+          <button type="button" className="settings-clear" onClick={handleClear}>Clear</button>
+        </div>
+      </form>
     </div>
   )
 }
