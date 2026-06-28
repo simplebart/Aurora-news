@@ -18,7 +18,7 @@
   --sans:     'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --r:        14px;
   --r-lg:     20px;
-  --nav-h:    62px;
+  --nav-h:    56px;
 }
 
 @media (prefers-color-scheme: light) {
@@ -78,7 +78,8 @@ body::before {
 @media (max-width: 768px) {
   .app {
     padding: .6rem 1rem 3rem;
-    padding-top: calc(var(--nav-h) + env(safe-area-inset-top) + 1rem);
+    padding-top: .6rem;
+    padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + .5rem);
   }
 }
 
