@@ -13,7 +13,7 @@ import './App.css'
 const GROUPED_VIEWS = ['today', 'all', 'calm']
 
 export default function App() {
-  const { feeds, calm, starred, read, setCalm, toggleStar, markRead, addFeed, removeFeed } = useStore()
+  const { feeds, calm, starred, read, syncStatus, setCalm, toggleStar, markRead, addFeed, removeFeed } = useStore()
   const [view,        setView]        = useState('today')
   const [searchQuery, setSearchQuery] = useState('')
   const [addOpen,     setAddOpen]     = useState(false)
