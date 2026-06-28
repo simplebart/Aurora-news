@@ -30,41 +30,33 @@ export default function App() {
   const sentinelRef = useRef(null)
 
   // Pull to refresh
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [pulling, setPulling] = useState(false)
+  const touchStartY = useRef(0)
+
   useEffect(() => {
     if (!isMobile) return
-    let startY = 0
-    let pulling = false
-    const threshold = 80
-
-    const onTouchStart = e => { startY = e.touches[0].clientY; pulling = window.scrollY === 0 }
-    const onTouchEnd = e => {
-      if (!pulling) return
-      const diff = e.changedTouches[0].clientY - startY
-      if (diff > threshold) {
-        // Trigger refresh
-        const event = new CustomEvent('aurora-refresh')
-        window.dispatchEvent(event)
+    const onTouchStart = e => { touchStartY.current = e.touches[0].clientY }
+    const onTouchMove = e => {
+      if (window.scrollY === 0 && e.touches[0].clientY - touchStartY.current > 60) {
+        setPulling(true)
       }
-      pulling = false
     }
-
+    const onTouchEnd = e => {
+      if (pulling && window.scrollY === 0 && e.changedTouches[0].clientY - touchStartY.current > 80) {
+        setRefreshKey(k => k + 1)
+      }
+      setPulling(false)
+    }
     document.addEventListener('touchstart', onTouchStart, { passive: true })
+    document.addEventListener('touchmove', onTouchMove, { passive: true })
     document.addEventListener('touchend', onTouchEnd, { passive: true })
     return () => {
       document.removeEventListener('touchstart', onTouchStart)
+      document.removeEventListener('touchmove', onTouchMove)
       document.removeEventListener('touchend', onTouchEnd)
     }
-  }, [isMobile])
-
-  // Listen for refresh event
-  useEffect(() => {
-    const onRefresh = () => {
-      // Clear useFeed cache by changing a dummy state
-      setView(v => v)
-    }
-    window.addEventListener('aurora-refresh', onRefresh)
-    return () => window.removeEventListener('aurora-refresh', onRefresh)
-  }, [])
+  }, [isMobile, pulling])
 
   // Detect mobile
   useEffect(() => {
@@ -78,7 +70,7 @@ export default function App() {
   useEffect(() => { setVisibleSecs(PAGE_SIZE) }, [view])
 
   // Fetch articles
-  const { articles, loading } = useFeed(feeds, view, calm)
+  const { articles, loading } = useFeed(feeds, view, calm, refreshKey)
 
   // Infinite scroll sentinel
   useEffect(() => {
@@ -130,6 +122,14 @@ export default function App() {
   return (
     <>
       {showSplash && <Splash onDone={() => setShowSplash(false)} />}
+      {pulling && isMobile && (
+        <div style={{
+          position: 'fixed', top: '1rem', left: '50%', transform: 'translateX(-50%)',
+          zIndex: 9998, background: 'rgba(91,111,255,.9)', color: '#fff',
+          borderRadius: '999px', padding: '.3rem .9rem', fontSize: '.75rem',
+          fontWeight: 700, backdropFilter: 'blur(12px)'
+        }}>↓ Release to refresh</div>
+      )}
       <div style={{ visibility: showSplash ? 'hidden' : 'visible' }}>
       {/* Mobile nav bar */}
       <NavBar
