@@ -81,16 +81,22 @@ export default async function handler(req) {
                || block.match(/<published[^>]*>([\s\S]*?)<\/published>/i)?.[1]
                || block.match(/<updated[^>]*>([\s\S]*?)<\/updated>/i)?.[1] || ''
 
-      // Image from media:thumbnail or enclosure
-      const imgMatch = block.match(/media:thumbnail[^>]+url=["']([^"']+)["']/i)
-                    || block.match(/enclosure[^>]+type=["']image[^"']*["'][^>]+url=["']([^"']+)["']/i)
-                    || block.match(/enclosure[^>]+url=["']([^"']+)["'][^>]+type=["']image/i)
-      let image = imgMatch ? imgMatch[1] : null
+      // Image extraction — try multiple patterns
+      let image = null
+      if (!LOW_RES.includes(source)) {
+        // media:thumbnail url="..."
+        const mt = block.match(/media:thumbnail[^>]+url=["']([^"']+)["']/i)
+        // media:content url="..." medium="image"
+        const mc = block.match(/media:content[^>]+url=["']([^"']+)["'][^>]*medium=["']image["']/i)
+               || block.match(/media:content[^>]*medium=["']image["'][^>]+url=["']([^"']+)["']/i)
+        // enclosure type="image/..."
+        const enc = block.match(/enclosure[^>]+type=["']image[^"']*["'][^>]+url=["']([^"']+)["']/i)
+                 || block.match(/enclosure[^>]+url=["']([^"']+)["'][^>]+type=["']image/i)
+        // img src in description
+        const descBlock = block.match(/<description[^>]*>([\s\S]*?)<\/description>/i)?.[1] || ''
+        const img = descBlock.match(/src=["']([^"']+\.(?:jpg|jpeg|png|webp)[^"']*)/i)
 
-      // Try og:image or img src from description if no image yet
-      if (!image && !LOW_RES.includes(source)) {
-        const descImg = desc.match(/src=["']([^"']+\.(?:jpg|jpeg|png|webp)[^"']*)/i)
-        if (descImg && !descImg[1].includes('1x1')) image = descImg[1]
+        image = (mt || mc || enc)?.[1] || (img && !img[1].includes('1x1') ? img[1] : null)
       }
 
       // Generate stable unique id from full link
