@@ -239,4 +239,4 @@
   transition: color .15s, border-color .15s;
 }
 .refresh-btn:hover { color: var(--ink); border-color: var(--ink-3); }
-.refresh-btn:active { transform: rotate(180deg); transition: transform .3s; }
+.refresh-btn:active { opacity: .7; }
