@@ -93,7 +93,7 @@ export const MAX_PER_FEED = 8
 export const MAX_PER_FEED_OVERRIDES = { 'The Verge': 4, 'Wired': 4 }
 
 // ─── Section display config ───────────────────────────────────────────────
-export const SECTION_SIZE      = 5   // articles shown per section
+export const SECTION_SIZE      = 5   // articles shown per section on Today
 export const MAX_PER_SOURCE    = 2   // diversity cap per section
 export const PAGE_SIZE         = 6   // sections loaded per "page"
 
