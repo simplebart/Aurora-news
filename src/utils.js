@@ -32,18 +32,69 @@ export async function fetchFeed(feed) {
     section: feed.section,
   })
 
+  // 1. Try own Vercel edge function
   try {
     const res = await fetch(`/api/feed?${params}`, {
       signal: AbortSignal.timeout(10000),
     })
     const data = await res.json()
     const items = (data.items || []).slice(0, cap)
-    // Convert date strings back to Date objects
-    return items.map(a => ({ ...a, date: a.date ? new Date(a.date) : null }))
+    if (items.length > 0) {
+      return items.map(a => ({ ...a, date: a.date ? new Date(a.date) : null }))
+    }
   } catch (e) {
-    console.error('fetchFeed error:', feed.name, e.message)
-    return []
+    console.error('fetchFeed Vercel error:', feed.name, e.message)
   }
+
+  // 2. Fallback: client-side fetch via corsproxy.io (browser IP, not cloud IP)
+  try {
+    const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(feed.url)}`, {
+      signal: AbortSignal.timeout(8000),
+    })
+    const text = await res.text()
+    if (!text.includes('<item') && !text.includes('<entry')) return []
+    return parseXmlFeed(text, feed, cap)
+  } catch {}
+
+  return []
+}
+
+function parseXmlFeed(text, feed, cap) {
+  const LOW_RES = new Set(['BBC News','BBC Europe','BBC Sport Football','The Guardian','The Guardian Film'])
+  const xml = new DOMParser().parseFromString(text, 'text/xml')
+  const items = [...xml.querySelectorAll('item, entry')]
+  const out = []
+  for (const item of items) {
+    const title = item.querySelector('title')?.textContent?.trim() || ''
+    if (!title) continue
+    const linkEl = item.querySelector('link')
+    const link = linkEl?.textContent?.trim() || linkEl?.getAttribute('href') || '#'
+    const desc = item.querySelector('description, summary, content')?.textContent || ''
+    const pub = item.querySelector('pubDate, published, updated')?.textContent || ''
+
+    let image = null
+    if (!LOW_RES.has(feed.name)) {
+      const mt = item.querySelector('thumbnail, content[medium="image"]')
+      if (mt?.getAttribute('url')) image = mt.getAttribute('url').replace(/&amp;/g, '&')
+      if (!image) {
+        const m = desc.match(/<img[^>]+src=["']([^"']+)/i)
+        if (m && !m[1].includes('1x1')) image = m[1]
+      }
+    }
+
+    let id
+    try { id = btoa(unescape(encodeURIComponent(link))).slice(-12) } catch { id = Math.random().toString(36).slice(2) }
+
+    out.push({
+      id, source: feed.name, section: feed.section, title,
+      link,
+      summary: desc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300),
+      image,
+      date: pub ? new Date(pub) : null,
+    })
+    if (out.length >= cap) break
+  }
+  return out
 }
 
 export function canScrape() { return false } // scraping now done server-side
