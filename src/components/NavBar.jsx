@@ -39,15 +39,7 @@ export default function NavBar({ view, onNav, onAdd, searchQuery, onSearch }) {
 
   return (
     <nav className="aurora-nav">
-      <div className="aurora-nav-inner">
-        {/* Brand */}
-        <div className="aurora-brand">
-          <span className="aurora-mark">✦</span>
-          <span className="aurora-title">Aurora</span>
-        </div>
-
-        {/* Tabs */}
-        <div className="aurora-tabs">
+      <div className="aurora-tabs">
           {TABS.map(tab => {
             if (tab.fab) {
               return (
@@ -82,7 +74,6 @@ export default function NavBar({ view, onNav, onAdd, searchQuery, onSearch }) {
             )
           })}
         </div>
-      </div>
     </nav>
   )
 }
