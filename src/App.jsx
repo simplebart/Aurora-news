@@ -195,6 +195,7 @@ export default function App() {
             onNav={handleSectionNav}
             isMobile={isMobile}
             isFirst={i === 0}
+            showAll={false}
           />
         ))}
 
@@ -242,10 +243,9 @@ function SingleView({ articles, starred, read, onRead, onStar, isMobile, view, o
   const hasMore = visible.length < articles.length
 
   if (isMobile) {
-    // Mobile: Google News layout in single section
+    // Mobile: Google News layout in single section — show all articles
     const items = visible
     const hero  = items[0]
-    const rest  = items.slice(1)
     return (
       <div>
         <button className="back-btn" onClick={onBack}>← Today</button>
@@ -255,6 +255,7 @@ function SingleView({ articles, starred, read, onRead, onStar, isMobile, view, o
             articles={items}
             starred={starred} read={read} onRead={onRead} onStar={onStar}
             onNav={() => {}} isMobile={true} isFirst={true}
+            showAll={true}
           />
         )}
         {hasMore && <div ref={sentinelRef} style={{ height: 1 }} />}
