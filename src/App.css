@@ -226,7 +226,7 @@
 
 /* ── Refresh button ─────────────────────────────────────────────── */
 .refresh-btn {
-  background: none;
+  background: var(--card);
   border: 1px solid var(--rule);
   border-radius: 999px;
   color: var(--ink-3);
