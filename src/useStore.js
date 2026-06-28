@@ -14,6 +14,7 @@ export function useStore() {
   const [starred, setStarredRaw] = useState(() => new Set(ls('aurora_starred', [])))
   const [read,    setReadRaw]    = useState(() => new Set(ls('aurora_read',    [])))
   const [ready,   setReady]      = useState(false)
+  const [syncStatus, setSyncStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
   const syncTimeout = useRef(null)
 
   // Load from Gist once on mount
@@ -46,7 +47,10 @@ export function useStore() {
       // Sync to gist with current calm/starred/read
       clearTimeout(syncTimeout.current)
       syncTimeout.current = setTimeout(() => {
+        setSyncStatus('saving')
         gistSave({ feeds: v, calm: ls('aurora_calm', DEFAULT_CALM), starred: ls('aurora_starred', []), read: ls('aurora_read', []) })
+          .then(ok => { setSyncStatus(ok ? 'saved' : 'error'); setTimeout(() => setSyncStatus(null), 2000) })
+          .catch(() => { setSyncStatus('error'); setTimeout(() => setSyncStatus(null), 2000) })
       }, 1000)
       return v
     })
@@ -99,5 +103,5 @@ export function useStore() {
     })
   }, [setFeeds])
 
-  return { feeds, calm, starred, read, ready, setCalm, toggleStar, markRead, addFeed, removeFeed }
+  return { feeds, calm, starred, read, ready, syncStatus, setCalm, toggleStar, markRead, addFeed, removeFeed }
 }
