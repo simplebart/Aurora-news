@@ -364,3 +364,10 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Pair card text variant (no image) */
+.m-pair-text {
+  background:
+    linear-gradient(148deg, color-mix(in srgb, var(--c) 12%, transparent), transparent 60%),
+    var(--card);
+}
