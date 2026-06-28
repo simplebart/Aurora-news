@@ -29,34 +29,8 @@ export default function App() {
   })
   const sentinelRef = useRef(null)
 
-  // Pull to refresh
+  // Refresh key — incremented to force feed reload
   const [refreshKey, setRefreshKey] = useState(0)
-  const [pulling, setPulling] = useState(false)
-  const touchStartY = useRef(0)
-
-  useEffect(() => {
-    if (!isMobile) return
-    const onTouchStart = e => { touchStartY.current = e.touches[0].clientY }
-    const onTouchMove = e => {
-      if (window.scrollY === 0 && e.touches[0].clientY - touchStartY.current > 60) {
-        setPulling(true)
-      }
-    }
-    const onTouchEnd = e => {
-      if (pulling && window.scrollY === 0 && e.changedTouches[0].clientY - touchStartY.current > 80) {
-        setRefreshKey(k => k + 1)
-      }
-      setPulling(false)
-    }
-    document.addEventListener('touchstart', onTouchStart, { passive: true })
-    document.addEventListener('touchmove', onTouchMove, { passive: true })
-    document.addEventListener('touchend', onTouchEnd, { passive: true })
-    return () => {
-      document.removeEventListener('touchstart', onTouchStart)
-      document.removeEventListener('touchmove', onTouchMove)
-      document.removeEventListener('touchend', onTouchEnd)
-    }
-  }, [isMobile, pulling])
 
   // Detect mobile
   useEffect(() => {
@@ -122,14 +96,7 @@ export default function App() {
   return (
     <>
       {showSplash && <Splash onDone={() => setShowSplash(false)} />}
-      {pulling && isMobile && (
-        <div style={{
-          position: 'fixed', top: '1rem', left: '50%', transform: 'translateX(-50%)',
-          zIndex: 9998, background: 'rgba(91,111,255,.9)', color: '#fff',
-          borderRadius: '999px', padding: '.3rem .9rem', fontSize: '.75rem',
-          fontWeight: 700, backdropFilter: 'blur(12px)'
-        }}>↓ Release to refresh</div>
-      )}
+
       <div style={{ visibility: showSplash ? 'hidden' : 'visible' }}>
       {/* Mobile nav bar */}
       <NavBar
@@ -188,6 +155,11 @@ export default function App() {
           </div>
           <div className="masthead-rule" />
         </header>
+
+        {/* Refresh button */}
+        <button className="refresh-btn" onClick={() => setRefreshKey(k => k + 1)}>
+          ↻ Refresh
+        </button>
 
         {/* Sync status indicator */}
         {syncStatus && (
