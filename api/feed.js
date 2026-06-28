@@ -34,34 +34,38 @@ export default async function handler(req) {
     return m ? m[1].trim() : ''
   }
 
+  function decodeUrl(url) {
+    return (url || '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#038;/g, '&')
+  }
+
   function extractImage(block, descContent) {
     if (LOW_RES.includes(source)) return null
 
     // 1. media:thumbnail
     const mt = block.match(/media:thumbnail[^>]+url=["']([^"']+)["']/i)
-    if (mt?.[1] && !mt[1].includes('1x1')) return mt[1]
+    if (mt?.[1] && !mt[1].includes('1x1')) return decodeUrl(mt[1])
 
     // 2. media:content with image type or medium
     const mc = block.match(/media:content[^>]+url=["']([^"']+)["'][^>]*(?:medium=["']image["']|type=["']image)/i)
             || block.match(/media:content[^>]*(?:medium=["']image["']|type=["']image)[^>]+url=["']([^"']+)["']/i)
-    if (mc?.[1] && !mc[1].includes('1x1')) return mc[1]
+    if (mc?.[1] && !mc[1].includes('1x1')) return decodeUrl(mc[1])
 
     // 3. media:content with image extension URL
     const mcExt = block.match(/media:content[^>]+url=["']([^"']+\.(?:jpg|jpeg|png|webp)[^"']*?)["']/i)
-    if (mcExt?.[1] && !mcExt[1].includes('1x1')) return mcExt[1]
+    if (mcExt?.[1] && !mcExt[1].includes('1x1')) return decodeUrl(mcExt[1])
 
     // 4. enclosure with image type
     const enc = block.match(/enclosure[^>]+url=["']([^"']+)["'][^>]*type=["']image/i)
              || block.match(/enclosure[^>]+type=["']image[^"']*["'][^>]+url=["']([^"']+)["']/i)
-    if (enc?.[1]) return enc[1]
+    if (enc?.[1]) return decodeUrl(enc[1])
 
     // 5. img tag in description/content (including CDATA)
     const imgInDesc = descContent.match(/<img[^>]+src=["']([^"']+)["']/i)
-    if (imgInDesc?.[1] && !imgInDesc[1].includes('1x1') && !imgInDesc[1].includes('pixel')) return imgInDesc[1]
+    if (imgInDesc?.[1] && !imgInDesc[1].includes('1x1') && !imgInDesc[1].includes('pixel')) return decodeUrl(imgInDesc[1])
 
     // 6. Any URL with image extension in the whole block
     const anyImg = block.match(/https?:\/\/[^"'\s<>]+\.(?:jpg|jpeg|png|webp)(?:[^"'\s<>]*)?/i)
-    if (anyImg?.[0] && !anyImg[0].includes('1x1') && anyImg[0].length > 20) return anyImg[0]
+    if (anyImg?.[0] && !anyImg[0].includes('1x1') && anyImg[0].length > 20) return decodeUrl(anyImg[0])
 
     return null
   }
