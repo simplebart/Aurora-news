@@ -109,8 +109,9 @@ export default async function handler(req) {
       if (!title || isExcluded(title)) continue
 
       const linkText = block.match(/<link[^>]*>([^<]+)<\/link>/i)?.[1]?.trim()
-      const linkHref = block.match(/<link[^/]*href=["']([^"']+)["']/i)?.[1]
-      const link = linkText || linkHref || '#'
+      const linkHref = block.match(/<link[^>]+href=["']([^"']+)["']/i)?.[1]
+      const linkAlt  = block.match(/<link[^>]+rel=["']alternate["'][^>]+href=["']([^"']+)["']/i)?.[1]
+      const link = linkAlt || linkHref || linkText || '#'
 
       // Get full description content including CDATA
       const descRaw = extractText(block, 'description') || extractText(block, 'summary') || extractText(block, 'content')
