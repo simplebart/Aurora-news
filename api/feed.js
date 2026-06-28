@@ -109,6 +109,24 @@ export default async function handler(req) {
       })
     }
 
+    // For articles without images, try microlink.io to get og:image
+    const NO_SCRAPE = ['FT','FT Opinion','FT Alphaville','The Economist','The Economist Leaders','MarketWatch']
+    if (!NO_SCRAPE.includes(source)) {
+      const needsImg = items.filter(a => !a.image && a.link !== '#')
+      if (needsImg.length > 0) {
+        await Promise.allSettled(needsImg.map(async (a) => {
+          try {
+            const r = await fetch(`https://api.microlink.io?url=${encodeURIComponent(a.link)}&meta=false&screenshot=false`, {
+              signal: AbortSignal.timeout(4000),
+            })
+            const d = await r.json()
+            if (d?.data?.image?.url) a.image = d.data.image.url
+            else if (d?.data?.logo?.url) a.image = d.data.logo.url
+          } catch {}
+        }))
+      }
+    }
+
     return json({ items })
   } catch (e) {
     return json({ error: e.message, items: [] })
