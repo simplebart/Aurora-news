@@ -78,7 +78,7 @@ body::before {
 @media (max-width: 768px) {
   .app {
     padding: .6rem 1rem 3rem;
-    padding-top: .6rem;
+    padding-top: max(1.2rem, env(safe-area-inset-top));
     padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + .5rem);
   }
 }
