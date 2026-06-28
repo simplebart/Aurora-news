@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import Splash from './components/Splash.jsx'
 import NavBar    from './components/NavBar.jsx'
 import Section   from './components/Section.jsx'
 import AddFeed   from './components/AddFeed.jsx'
@@ -84,6 +85,7 @@ export default function App() {
 
   return (
     <>
+      {showSplash && <Splash onDone={() => setShowSplash(false)} />}
       {/* Mobile nav bar */}
       <NavBar
         view={view}
