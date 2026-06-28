@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { fetchFeed, diverseSection } from './utils.js'
 import { SECTION_SIZE, MAX_PER_SOURCE } from './config.js'
 
-export function useFeed(feeds, view, calmSources) {
+export function useFeed(feeds, view, calmSources, refreshKey = 0) {
   const [articles, setArticles] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -14,7 +14,7 @@ export function useFeed(feeds, view, calmSources) {
   const calmKey = [...(calmSources || [])].sort().join('|')
 
   const prevKey = useRef('')
-  const currentKey = `${view}||${feedsKey}||${calmKey}`
+  const currentKey = `${view}||${feedsKey}||${calmKey}||${refreshKey}`
 
   useEffect(() => {
     // Skip if nothing changed
