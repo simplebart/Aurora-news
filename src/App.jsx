@@ -20,6 +20,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [visibleSecs, setVisibleSecs] = useState(PAGE_SIZE)
   const [isMobile,    setIsMobile]    = useState(window.innerWidth <= 768)
+  const [showSplash,  setShowSplash]  = useState(true)
   const sentinelRef = useRef(null)
 
   // Detect mobile
