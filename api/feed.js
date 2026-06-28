@@ -19,13 +19,33 @@ export default async function handler(req) {
     return kws.some(k => title.toLowerCase().includes(k))
   }
 
+  function fixEncoding(s) {
+    // Fix UTF-8 mojibake (â€™ -> ', â€œ -> ", etc)
+    try { s = decodeURIComponent(escape(s)) } catch {}
+    return s
+      .replace(/\u00e2\u0080\u0099/g, "'").replace(/â€™/g, "'")
+      .replace(/\u00e2\u0080\u009c/g, '"').replace(/â€œ/g, '"')
+      .replace(/\u00e2\u0080\u009d/g, '"').replace(/â€/g, '"')
+      .replace(/\u00e2\u0080\u0093/g, '–').replace(/â€"/g, '–')
+      .replace(/\u00e2\u0080\u0094/g, '—').replace(/â€"/g, '—')
+      .replace(/\u00c3\u00a9/g, 'é').replace(/Ã©/g, 'é')
+      .replace(/\u00c3\u00bc/g, 'ü').replace(/Ã¼/g, 'ü')
+      .replace(/\u00c3\u00a4/g, 'ä').replace(/Ã¤/g, 'ä')
+  }
+
   function stripHtml(s) {
-    return (s||'').replace(/<[^>]+>/g,' ')
+    s = fixEncoding(s || '')
+    s = s.replace(/<[^>]+>/g,' ')
       .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
-      .replace(/&quot;/g,'"')
+      .replace(/&quot;/g,'"').replace(/&#039;/g,"'")
       .replace(/&#x([0-9a-fA-F]+);/g,(_,h)=>String.fromCodePoint(parseInt(h,16)))
       .replace(/&#(\d+);/g,(_,d)=>String.fromCodePoint(parseInt(d,10)))
       .replace(/&[a-z]+;/g,' ').replace(/\s+/g,' ').trim()
+    // Remove "The post X appeared first on Y" boilerplate
+    s = s.replace(/The post .+ appeared first on .+\.?$/i, '').trim()
+    s = s.replace(/This article first appeared.+$/i, '').trim()
+    s = s.replace(/Originally published.+$/i, '').trim()
+    return s
   }
 
   function extractText(block, tag) {
@@ -85,7 +105,7 @@ export default async function handler(req) {
 
     while ((match = itemRegex.exec(text)) !== null && items.length < 10) {
       const block = match[1] || match[2]
-      const title = stripHtml(extractText(block, 'title'))
+      const title = fixEncoding(stripHtml(extractText(block, 'title')))
       if (!title || isExcluded(title)) continue
 
       const linkText = block.match(/<link[^>]*>([^<]+)<\/link>/i)?.[1]?.trim()
