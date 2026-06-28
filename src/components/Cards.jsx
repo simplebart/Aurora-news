@@ -154,15 +154,29 @@ export function MobileHero({ article, starred, read, onRead, onStar }) {
 export function MobilePairCard({ article, starred, read, onRead, onStar }) {
   const color = colorFor(article.source)
   const ini   = initials(article.source)
+
+  if (!article.image) {
+    // No image — text only card
+    return (
+      <div className={`m-pair-card m-pair-text${read ? ' read' : ''}`} style={{ '--c': color }}>
+        <a href={article.link} target="_blank" rel="noopener noreferrer" onClick={() => onRead(article.id)}>
+          <div className="m-pair-body" style={{ padding: '.7rem .7rem .6rem' }}>
+            <div className="m-pair-src" style={{ color }}>{article.source}</div>
+            <div className="m-pair-title">{article.title}</div>
+          </div>
+        </a>
+        <button className="m-star" onClick={() => onStar(article.id)}>{starred ? '★' : '☆'}</button>
+      </div>
+    )
+  }
+
   return (
     <div className={`m-pair-card${read ? ' read' : ''}`}>
       <a href={article.link} target="_blank" rel="noopener noreferrer" onClick={() => onRead(article.id)}>
         <div className="m-pair-img" style={{ '--c': color }}>
           <div className="m-pair-ph">{ini}</div>
-          {article.image && (
-            <img className="m-pair-over" src={article.image} alt="" loading="lazy"
-                 onError={e => { e.target.style.display = 'none' }} />
-          )}
+          <img className="m-pair-over" src={article.image} alt="" loading="lazy"
+               onError={e => { e.target.style.display = 'none' }} />
         </div>
         <div className="m-pair-body">
           <div className="m-pair-src" style={{ color }}>{article.source}</div>
@@ -177,7 +191,6 @@ export function MobilePairCard({ article, starred, read, onRead, onStar }) {
 // ─── Mobile list card ─────────────────────────────────────────────────────
 export function MobileListCard({ article, starred, read, onRead, onStar }) {
   const color = colorFor(article.source)
-  const ini   = initials(article.source)
   return (
     <div className={`m-list-card${read ? ' read' : ''}`}>
       <a href={article.link} target="_blank" rel="noopener noreferrer"
@@ -187,13 +200,12 @@ export function MobileListCard({ article, starred, read, onRead, onStar }) {
           <div className="m-list-title">{article.title}</div>
           <div className="m-list-ago">{relative(article.date)}</div>
         </div>
-        <div className="m-list-thumb" style={{ '--c': color }}>
-          <div className="m-list-ph">{ini}</div>
-          {article.image && (
+        {article.image && (
+          <div className="m-list-thumb" style={{ '--c': color }}>
             <img className="m-list-over" src={article.image} alt="" loading="lazy"
                  onError={e => { e.target.style.display = 'none' }} />
-          )}
-        </div>
+          </div>
+        )}
       </a>
       <button className="m-star m-star-list" onClick={() => onStar(article.id)}>{starred ? '★' : '☆'}</button>
     </div>
