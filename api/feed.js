@@ -1,12 +1,10 @@
-export const config = { runtime: 'edge' }
+// Vercel serverless function — Node.js runtime voor betere compatibiliteit
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=300')
 
-export default async function handler(req) {
-  const { searchParams } = new URL(req.url)
-  const url = searchParams.get('url')
-  const source = searchParams.get('source') || ''
-  const section = searchParams.get('section') || ''
-
-  if (!url) return json({ error: 'Missing url', items: [] })
+  const { url, source = '', section = '' } = req.query
+  if (!url) return res.status(400).json({ error: 'Missing url', items: [] })
 
   const LOW_RES = ['BBC News','BBC Europe','BBC Sport Football','The Guardian','The Guardian Film']
   const NO_SCRAPE = ['FT','FT Opinion','FT Alphaville','The Economist','The Economist Leaders','MarketWatch']
@@ -30,26 +28,38 @@ export default async function handler(req) {
 
   async function getOgImage(articleUrl) {
     try {
+      const controller = new AbortController()
+      setTimeout(() => controller.abort(), 4000)
       const r = await fetch(articleUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html' },
-        signal: AbortSignal.timeout(3000),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+        signal: controller.signal,
+        redirect: 'follow',
       })
       const html = await r.text()
       const m = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
              || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)
-             || html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i)
+             || html.match(/<meta[^>]+name=["']twitter:image(?::src)?["'][^>]+content=["']([^"']+)["']/i)
+             || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image/i)
       return m ? m[1] : null
     } catch { return null }
   }
 
   try {
-    const res = await fetch(url, {
+    const controller = new AbortController()
+    setTimeout(() => controller.abort(), 8000)
+    const feedRes = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
         'Accept': 'application/rss+xml, application/xml, text/xml, */*',
       },
+      signal: controller.signal,
+      redirect: 'follow',
     })
-    const text = await res.text()
+    const text = await feedRes.text()
 
     const items = []
     const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>|<entry[^>]*>([\s\S]*?)<\/entry>/gi
@@ -71,7 +81,6 @@ export default async function handler(req) {
                || block.match(/<published[^>]*>([\s\S]*?)<\/published>/i)?.[1]
                || block.match(/<updated[^>]*>([\s\S]*?)<\/updated>/i)?.[1] || ''
 
-      // Try all image patterns
       let image = null
       if (!LOW_RES.includes(source)) {
         const patterns = [
@@ -97,7 +106,7 @@ export default async function handler(req) {
       items.push({ id, source, section, title, link, summary: stripHtml(desc).slice(0,300), image, date: pub ? new Date(pub).toISOString() : null })
     }
 
-    // Scrape og:image in parallel for items without images
+    // Scrape og:image in parallel for articles without images
     if (!NO_SCRAPE.includes(source)) {
       const needsImg = items.filter(a => !a.image && a.link !== '#')
       if (needsImg.length > 0) {
@@ -108,14 +117,8 @@ export default async function handler(req) {
       }
     }
 
-    return json({ items })
+    return res.json({ items })
   } catch (e) {
-    return json({ error: e.message, items: [] })
+    return res.status(500).json({ error: e.message, items: [] })
   }
-}
-
-function json(data) {
-  return new Response(JSON.stringify(data), {
-    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 's-maxage=600' },
-  })
 }
