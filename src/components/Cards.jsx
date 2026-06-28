@@ -108,15 +108,32 @@ export function SmallCard({ article, starred, read, onRead, onStar }) {
 export function MobileHero({ article, starred, read, onRead, onStar }) {
   const color = colorFor(article.source)
   const ini   = initials(article.source)
+
+  // No image — show rich text panel instead of colour plate
+  if (!article.image) {
+    return (
+      <div className={`m-hero-text${read ? ' read' : ''}`} style={{ '--c': color }}>
+        <a href={article.link} target="_blank" rel="noopener noreferrer" onClick={() => onRead(article.id)}>
+          <div className="m-src-row">
+            <span className="m-src-name" style={{ color }}>{article.source}</span>
+            <span className="m-src-dot">·</span>
+            <span className="m-src-ago">{relative(article.date)}</span>
+          </div>
+          <div className="m-hero-text-title">{article.title}</div>
+          {article.summary && <p className="m-hero-text-dek">{article.summary.slice(0, 180)}</p>}
+        </a>
+        <button className="m-star" onClick={() => onStar(article.id)}>{starred ? '★' : '☆'}</button>
+      </div>
+    )
+  }
+
   return (
     <div className={`m-hero${read ? ' read' : ''}`}>
       <a href={article.link} target="_blank" rel="noopener noreferrer" onClick={() => onRead(article.id)}>
         <div className="m-hero-img" style={{ '--c': color }}>
           <div className="m-hero-ph">{ini}</div>
-          {article.image && (
-            <img className="m-hero-over" src={article.image} alt="" loading="lazy"
-                 onError={e => { e.target.style.display = 'none' }} />
-          )}
+          <img className="m-hero-over" src={article.image} alt="" loading="lazy"
+               onError={e => { e.target.style.display = 'none' }} />
           <div className="m-hero-scrim" />
         </div>
         <div className="m-hero-body">
