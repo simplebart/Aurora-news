@@ -10,8 +10,8 @@ export default async function handler(req) {
 
   const LOW_RES = ['BBC News','BBC Europe','BBC Sport Football','The Guardian','The Guardian Film']
   const NO_KW = {
-    'The Verge': ['prime day','deal','deals','review','hands-on','best','discount','sale','unboxing','how to','versus',' vs ','giveaway','buy','price','cheap','gift guide'],
-    'Wired': ['review','best','buying guide','how to','deal','deals','discount','sale','gear','tested','gift guide','coupon','promo'],
+    'The Verge': ['deals','deal of the day','gift guide','buying guide'],
+    'Wired': ['gift guide','buying guide'],
   }
 
   function isExcluded(title) {
