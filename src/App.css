@@ -10,10 +10,14 @@
   flex-shrink: 0;
   position: sticky;
   top: 1.4rem;
+  max-height: calc(100vh - 2.8rem);
+  overflow-y: auto;
+  scrollbar-width: none;
   display: flex;
   flex-direction: column;
   gap: .5rem;
 }
+.sidebar::-webkit-scrollbar { display: none; }
 
 .sidebar-brand {
   display: flex; align-items: center; gap: .5rem;
@@ -192,3 +196,30 @@
   background:none; border:1px solid var(--rule); border-radius:9px;
   color:var(--ink-3); font-size:.82rem; padding:.45rem .8rem; cursor:pointer;
 }
+
+/* ── Sync indicator ─────────────────────────────────────────────── */
+.sync-indicator {
+  display: inline-flex; align-items: center;
+  font-size: .72rem; font-weight: 600;
+  padding: .22rem .65rem; border-radius: 999px;
+  margin-bottom: .6rem;
+  animation: fadeIn .2s ease;
+}
+.sync-saving { background: rgba(91,111,255,.15); color: #5b6fff; border: 1px solid rgba(91,111,255,.3); }
+.sync-saved  { background: rgba(56,212,190,.15); color: #38d4be; border: 1px solid rgba(56,212,190,.3); }
+.sync-error  { background: rgba(255,78,78,.15);  color: #ff4e4e; border: 1px solid rgba(255,78,78,.3); }
+
+/* ── Back button improved ───────────────────────────────────────── */
+.back-btn {
+  display: inline-flex; align-items: center; gap: .35rem;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 999px; cursor: pointer;
+  color: var(--ink-2); font-family: var(--sans);
+  font-size: .8rem; font-weight: 600;
+  padding: .32rem .85rem; margin-bottom: 1.2rem;
+  transition: color .15s, border-color .15s, background .15s;
+  box-shadow: var(--shadow-s);
+}
+.back-btn:hover { color: var(--ink); border-color: var(--ink-3); background: var(--surface); }
+.back-btn::before { content: '←'; font-size: .9rem; }
