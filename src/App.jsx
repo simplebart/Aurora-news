@@ -20,7 +20,13 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [visibleSecs, setVisibleSecs] = useState(PAGE_SIZE)
   const [isMobile,    setIsMobile]    = useState(window.innerWidth <= 768)
-  const [showSplash,  setShowSplash]  = useState(true)
+  const [showSplash,  setShowSplash]  = useState(() => {
+    // Only show splash on first visit per session
+    const seen = sessionStorage.getItem('aurora_splash')
+    if (seen) return false
+    sessionStorage.setItem('aurora_splash', '1')
+    return true
+  })
   const sentinelRef = useRef(null)
 
   // Detect mobile
@@ -87,6 +93,7 @@ export default function App() {
   return (
     <>
       {showSplash && <Splash onDone={() => setShowSplash(false)} />}
+      <div style={{ visibility: showSplash ? 'hidden' : 'visible' }}>
       {/* Mobile nav bar */}
       <NavBar
         view={view}
@@ -126,6 +133,7 @@ export default function App() {
           </div>
         </div>
       </main>
+      </div>
     </>
   )
 
