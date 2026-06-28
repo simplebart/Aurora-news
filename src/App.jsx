@@ -29,6 +29,43 @@ export default function App() {
   })
   const sentinelRef = useRef(null)
 
+  // Pull to refresh
+  useEffect(() => {
+    if (!isMobile) return
+    let startY = 0
+    let pulling = false
+    const threshold = 80
+
+    const onTouchStart = e => { startY = e.touches[0].clientY; pulling = window.scrollY === 0 }
+    const onTouchEnd = e => {
+      if (!pulling) return
+      const diff = e.changedTouches[0].clientY - startY
+      if (diff > threshold) {
+        // Trigger refresh
+        const event = new CustomEvent('aurora-refresh')
+        window.dispatchEvent(event)
+      }
+      pulling = false
+    }
+
+    document.addEventListener('touchstart', onTouchStart, { passive: true })
+    document.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart)
+      document.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [isMobile])
+
+  // Listen for refresh event
+  useEffect(() => {
+    const onRefresh = () => {
+      // Clear useFeed cache by changing a dummy state
+      setView(v => v)
+    }
+    window.addEventListener('aurora-refresh', onRefresh)
+    return () => window.removeEventListener('aurora-refresh', onRefresh)
+  }, [])
+
   // Detect mobile
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)')
@@ -152,6 +189,13 @@ export default function App() {
           <div className="masthead-rule" />
         </header>
 
+        {/* Sync status indicator */}
+        {syncStatus && (
+          <div className={"sync-indicator sync-" + syncStatus}>
+            {syncStatus === 'saving' ? '↑ Saving…' : syncStatus === 'saved' ? '✓ Saved' : '✕ Save failed'}
+          </div>
+        )}
+
         {/* Add feed panel */}
         {addOpen && (
           <AddFeed
@@ -259,7 +303,7 @@ function SingleView({ articles, starred, read, onRead, onStar, isMobile, view, o
     const hero  = items[0]
     return (
       <div>
-        <button className="back-btn" onClick={onBack}>← Today</button>
+        <button className="back-btn" onClick={onBack}>Today</button>
         {hero && (
           <Section
             title=""
@@ -325,7 +369,7 @@ function SingleView({ articles, starred, read, onRead, onStar, isMobile, view, o
 
   return (
     <div>
-      <button className="back-btn" onClick={onBack}>← Today</button>
+      <button className="back-btn" onClick={onBack}>Today</button>
       <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
         {rows}
       </div>
