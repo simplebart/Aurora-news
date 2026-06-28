@@ -111,7 +111,8 @@ export default async function handler(req) {
       const linkText = block.match(/<link[^>]*>([^<]+)<\/link>/i)?.[1]?.trim()
       const linkHref = block.match(/<link[^>]+href=["']([^"']+)["']/i)?.[1]
       const linkAlt  = block.match(/<link[^>]+rel=["']alternate["'][^>]+href=["']([^"']+)["']/i)?.[1]
-      const link = linkAlt || linkHref || linkText || '#'
+      const guid     = block.match(/<guid[^>]*>([^<]+)<\/guid>/i)?.[1]?.trim()
+      const link = linkAlt || linkHref || (linkText && linkText.startsWith('http') ? linkText : null) || (guid && guid.startsWith('http') ? guid : null) || '#'
 
       // Get full description content including CDATA
       const descRaw = extractText(block, 'description') || extractText(block, 'summary') || extractText(block, 'content')
