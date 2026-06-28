@@ -3,8 +3,10 @@ import { diverseSection } from '../utils.js'
 import { SECTION_SIZE, MAX_PER_SOURCE } from '../config.js'
 import './Section.css'
 
-export default function Section({ title, articles, starred, read, onRead, onStar, onNav, isMobile, isFirst }) {
-  const items = diverseSection(articles, SECTION_SIZE, MAX_PER_SOURCE)
+export default function Section({ title, articles, starred, read, onRead, onStar, onNav, isMobile, isFirst, showAll }) {
+  const items = showAll
+    ? articles  // show all articles without cap when in single section view
+    : diverseSection(articles, SECTION_SIZE, MAX_PER_SOURCE)
   if (!items.length) return null
 
   return (
