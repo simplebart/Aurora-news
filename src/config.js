@@ -73,13 +73,10 @@ export const ACCENTS = {
 // ─── Keyword filters (case-insensitive, matched against title) ────────────
 export const EXCLUDE_KEYWORDS = {
   'The Verge': [
-    'prime day','deal','deals','review','hands-on','hands on','best',
-    'discount','sale','unboxing','how to','versus',' vs ','giveaway',
-    'buy','price','cheap','gift guide',
+    'deals','deal of the day','gift guide','buying guide',
   ],
   'Wired': [
-    'review','best','buying guide','how to','deal','deals','discount',
-    'sale','gear','tested','gift guide','coupon','promo',
+    'gift guide','buying guide',
   ],
 }
 
