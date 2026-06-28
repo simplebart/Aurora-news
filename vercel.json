@@ -2,5 +2,13 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
-  "framework": null
+  "framework": null,
+  "functions": {
+    "api/feed.js": {
+      "maxDuration": 30
+    },
+    "api/og.js": {
+      "maxDuration": 10
+    }
+  }
 }
