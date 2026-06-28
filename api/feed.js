@@ -49,9 +49,15 @@ export default async function handler(req) {
   }
 
   function extractText(block, tag) {
-    // Handles both CDATA and plain content
-    const m = block.match(new RegExp(`<${tag}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${tag}>`, 'i'))
-    return m ? m[1].trim() : ''
+    // Try CDATA first
+    const cdata = block.match(new RegExp(`<${tag}[^>]*>\\s*<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>\\s*<\\/${tag}>`, 'i'))
+    if (cdata) return cdata[1].trim()
+    // Then plain text
+    const plain = block.match(new RegExp(`<${tag}[^>]*>([^<]*)<\\/${tag}>`, 'i'))
+    if (plain) return plain[1].trim()
+    // Fallback with any content
+    const any = block.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'))
+    return any ? any[1].replace(/<[^>]+>/g, '').trim() : ''
   }
 
   function decodeUrl(url) {
